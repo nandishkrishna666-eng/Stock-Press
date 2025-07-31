@@ -2,12 +2,12 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 import datetime
 from fpdf import FPDF
 from io import BytesIO
 import tempfile
 import os
+import matplotlib.pyplot as plt
 
 # Set Streamlit config
 st.set_page_config(page_title="📈 Live Stock Market Dashboard", layout="wide")
@@ -33,7 +33,7 @@ if symbols:
     st.subheader("📅 Raw Data")
     st.dataframe(all_data.head(), use_container_width=True)
 
-    # Closing Price Chart
+    # Closing Price Chart - Plotly
     st.subheader("📈 Closing Price Trend")
     fig1 = px.line()
     for symbol in symbols:
@@ -41,7 +41,7 @@ if symbols:
     fig1.update_layout(title="Closing Price Over Time", xaxis_title="Date", yaxis_title="Price (USD)")
     st.plotly_chart(fig1, use_container_width=True)
 
-    # Volume Chart
+    # Volume Chart - Plotly
     st.subheader("📊 Volume Traded")
     fig2 = px.area()
     for symbol in symbols:
@@ -68,7 +68,7 @@ if symbols:
     csv = all_data.to_csv(index=False).encode('utf-8')
     st.download_button("📥 Download CSV", data=csv, file_name="stock_data.csv", mime="text/csv")
 
-    # PDF with Graphs
+    # PDF Download with Matplotlib
     st.subheader("📄 Download PDF Report with Charts")
 
     class PDF(FPDF):
@@ -82,19 +82,38 @@ if symbols:
             for _, row in stats.iterrows():
                 self.cell(0, 10, f"{row['Symbol']} - Close: ${row['Latest Close']:.2f}, High: ${row['Day High']:.2f}, Low: ${row['Day Low']:.2f}, Volume: {int(row['Volume'])}", ln=1)
 
-    # Save charts to PNG & PDF
+    # Save plots with Matplotlib
     with tempfile.TemporaryDirectory() as tmpdir:
         chart1_path = os.path.join(tmpdir, "close_chart.png")
         chart2_path = os.path.join(tmpdir, "volume_chart.png")
 
-        # Save plots to PNG using Kaleido
-        fig1.write_image(chart1_path, format="png")
-        fig2.write_image(chart2_path, format="png")
+        # Matplotlib Close Price
+        plt.figure(figsize=(10, 5))
+        for symbol in symbols:
+            plt.plot(all_data['Date'], all_data[f'Close_{symbol}'], label=symbol)
+        plt.title("Closing Price Over Time")
+        plt.xlabel("Date")
+        plt.ylabel("Price (USD)")
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(chart1_path)
+        plt.close()
+
+        # Matplotlib Volume
+        plt.figure(figsize=(10, 5))
+        for symbol in symbols:
+            plt.plot(all_data['Date'], all_data[f'Volume_{symbol}'], label=symbol)
+        plt.title("Volume Traded")
+        plt.xlabel("Date")
+        plt.ylabel("Volume")
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(chart2_path)
+        plt.close()
 
         # Create PDF
         pdf = PDF()
         pdf.add_page()
-        pdf.set_font("Arial", size=12)
         pdf.add_stats(stats_df)
 
         pdf.ln(10)
@@ -102,7 +121,6 @@ if symbols:
         pdf.ln(10)
         pdf.image(chart2_path, w=180)
 
-        # Convert to bytes
         pdf_bytes = pdf.output(dest='S').encode('latin1')
         pdf_file = BytesIO(pdf_bytes)
 
@@ -111,5 +129,6 @@ if symbols:
 
 else:
     st.warning("👈 Please select at least one stock to begin.")
+
 
 
