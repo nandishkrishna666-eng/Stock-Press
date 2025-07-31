@@ -2,55 +2,67 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import datetime
 from fpdf import FPDF
 from io import BytesIO
-import tempfile
-import os
-import matplotlib.pyplot as plt
 
-# Set Streamlit config
+# Set page configuration
 st.set_page_config(page_title="📈 Live Stock Market Dashboard", layout="wide")
-st.title("📊 Live Stock Market Dashboard")
 
-# Sidebar filters
+st.title("📊 Live Stock Market Dashboard")
+st.markdown("View real-time stock prices, closing trends, and trading volume.")
+
+# Sidebar input
 symbols = st.sidebar.multiselect(
-    "Select Stocks",
+    "Select Stocks to View",
     ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META", "NVDA", "NFLX", "IBM", "INTC"],
-    default=["AAPL", "MSFT"]
+    default=["AAPL", "MSFT", "GOOGL"]
 )
+
 start_date = st.sidebar.date_input("Start Date", datetime.date(2023, 1, 1))
 end_date = st.sidebar.date_input("End Date", datetime.date.today())
 
+# Fetch and display data
 if symbols:
-    # Download stock data
     all_data = yf.download(symbols, start=start_date, end=end_date)
 
-    # Flatten multi-index
+    # Flatten multi-index columns
     all_data.columns = ['_'.join(col).strip('_') if isinstance(col, tuple) else col for col in all_data.columns]
     all_data.reset_index(inplace=True)
 
-    st.subheader("📅 Raw Data")
+    st.subheader("📅 Raw Data Preview")
     st.dataframe(all_data.head(), use_container_width=True)
 
-    # Closing Price Chart - Plotly
+    # Closing Price Trend
     st.subheader("📈 Closing Price Trend")
     fig1 = px.line()
     for symbol in symbols:
-        fig1.add_scatter(x=all_data['Date'], y=all_data[f'Close_{symbol}'], mode='lines', name=symbol)
+        fig1.add_scatter(
+            x=all_data['Date'],
+            y=all_data[f'Close_{symbol}'],
+            mode='lines',
+            name=symbol
+        )
     fig1.update_layout(title="Closing Price Over Time", xaxis_title="Date", yaxis_title="Price (USD)")
     st.plotly_chart(fig1, use_container_width=True)
 
-    # Volume Chart - Plotly
+    # Volume Traded
     st.subheader("📊 Volume Traded")
     fig2 = px.area()
     for symbol in symbols:
-        fig2.add_scatter(x=all_data['Date'], y=all_data[f'Volume_{symbol}'], mode='lines', name=symbol, stackgroup='one')
-    fig2.update_layout(title="Volume Traded", xaxis_title="Date", yaxis_title="Volume")
+        fig2.add_scatter(
+            x=all_data['Date'],
+            y=all_data[f'Volume_{symbol}'],
+            mode='lines',
+            stackgroup='one',
+            name=symbol
+        )
+    fig2.update_layout(title="Daily Volume Traded", xaxis_title="Date", yaxis_title="Volume")
     st.plotly_chart(fig2, use_container_width=True)
 
-    # Stats Table
-    st.subheader("📌 Stock Statistics")
+    # Key Stats Table
+    st.subheader("📌 Latest Stock Statistics")
     stats_data = []
     for symbol in symbols:
         latest = all_data.iloc[-1]
@@ -64,78 +76,77 @@ if symbols:
     stats_df = pd.DataFrame(stats_data)
     st.dataframe(stats_df, use_container_width=True)
 
-    # CSV Download
-    csv = all_data.to_csv(index=False).encode('utf-8')
-    st.download_button("📥 Download CSV", data=csv, file_name="stock_data.csv", mime="text/csv")
+    # Moving Averages
+    st.subheader("📉 Moving Averages (SMA 20 & 50)")
+    for symbol in symbols:
+        df = all_data[["Date", f"Close_{symbol}"]].copy()
+        df["SMA20"] = df[f"Close_{symbol}"].rolling(window=20).mean()
+        df["SMA50"] = df[f"Close_{symbol}"].rolling(window=50).mean()
 
-    # PDF Download with Matplotlib
-    st.subheader("📄 Download PDF Report with Charts")
+        fig_ma = px.line(df, x="Date", y=[f"Close_{symbol}", "SMA20", "SMA50"],
+                         labels={"value": "Price", "variable": "Type"},
+                         title=f"{symbol} - Moving Averages")
+        st.plotly_chart(fig_ma, use_container_width=True)
+
+    # Candlestick Charts
+    st.subheader("🕯️ Candlestick Charts")
+    for symbol in symbols:
+        df_candle = yf.download(symbol, start=start_date, end=end_date)
+        fig_candle = go.Figure(data=[go.Candlestick(
+            x=df_candle.index,
+            open=df_candle['Open'],
+            high=df_candle['High'],
+            low=df_candle['Low'],
+            close=df_candle['Close']
+        )])
+        fig_candle.update_layout(title=f'{symbol} Candlestick Chart', xaxis_title='Date', yaxis_title='Price (USD)')
+        st.plotly_chart(fig_candle, use_container_width=True)
+
+    # CSV Download
+    st.subheader("📥 Download Data")
+    csv = all_data.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label="Download Combined Data as CSV",
+        data=csv,
+        file_name='stock_data.csv',
+        mime='text/csv',
+    )
+
+    # PDF Download
+    st.subheader("📄 Download PDF Report")
 
     class PDF(FPDF):
         def header(self):
-            self.set_font("Arial", 'B', 14)
-            self.cell(0, 10, "Stock Market Report", ln=1, align="C")
+            self.set_font("Arial", 'B', 16)
+            self.cell(0, 10, "Stock Market Summary Report", ln=1, align='C')
 
-        def add_stats(self, stats):
-         self.set_font("Arial", size=12)
-         self.ln(5)
-    for _, row in stats.iterrows():
-        symbol = row.get("Symbol", "N/A")
-        close = f"${row['Latest Close']:.2f}" if pd.notna(row['Latest Close']) else "N/A"
-        high = f"${row['Day High']:.2f}" if pd.notna(row['Day High']) else "N/A"
-        low = f"${row['Day Low']:.2f}" if pd.notna(row['Day Low']) else "N/A"
-        volume = f"{int(row['Volume'])}" if pd.notna(row['Volume']) else "N/A"
-        line = f"{symbol} - Close: {close}, High: {high}, Low: {low}, Volume: {volume}"
-        self.cell(0, 10, line, ln=1)
+        def add_stock_stats(self, stats):
+            self.set_font("Arial", size=12)
+            self.ln(10)
+            for index, row in stats.iterrows():
+                self.cell(0, 10, f"{row['Symbol']} - Close: ${row['Latest Close']:.2f}, "
+                                 f"High: ${row['Day High']:.2f}, Low: ${row['Day Low']:.2f}, "
+                                 f"Volume: {int(row['Volume'])}", ln=1)
 
+    # Create PDF
+    pdf = PDF()
+    pdf.add_page()
+    pdf.add_stock_stats(stats_df)
 
-    # Save plots with Matplotlib
-    with tempfile.TemporaryDirectory() as tmpdir:
-        chart1_path = os.path.join(tmpdir, "close_chart.png")
-        chart2_path = os.path.join(tmpdir, "volume_chart.png")
+    # Save to bytes using output(dest='S')
+    pdf_bytes = pdf.output(dest='S').encode('latin1')
+    pdf_output = BytesIO(pdf_bytes)
 
-        # Matplotlib Close Price
-        plt.figure(figsize=(10, 5))
-        for symbol in symbols:
-            plt.plot(all_data['Date'], all_data[f'Close_{symbol}'], label=symbol)
-        plt.title("Closing Price Over Time")
-        plt.xlabel("Date")
-        plt.ylabel("Price (USD)")
-        plt.legend()
-        plt.tight_layout()
-        plt.savefig(chart1_path)
-        plt.close()
-
-        # Matplotlib Volume
-        plt.figure(figsize=(10, 5))
-        for symbol in symbols:
-            plt.plot(all_data['Date'], all_data[f'Volume_{symbol}'], label=symbol)
-        plt.title("Volume Traded")
-        plt.xlabel("Date")
-        plt.ylabel("Volume")
-        plt.legend()
-        plt.tight_layout()
-        plt.savefig(chart2_path)
-        plt.close()
-
-        # Create PDF
-        pdf = PDF()
-        pdf.add_page()
-        pdf.add_stats(stats_df)
-
-        pdf.ln(10)
-        pdf.image(chart1_path, w=180)
-        pdf.ln(10)
-        pdf.image(chart2_path, w=180)
-
-        pdf_bytes = pdf.output(dest='S').encode('latin1')
-        pdf_file = BytesIO(pdf_bytes)
-
-        # Download button
-        st.download_button("📄 Download PDF with Charts", data=pdf_file, file_name="stock_report.pdf", mime="application/pdf")
+    st.download_button(
+        label="Download Summary as PDF",
+        data=pdf_output,
+        file_name="stock_summary.pdf",
+        mime="application/pdf"
+    )
 
 else:
-    st.warning("👈 Please select at least one stock to begin.")
+    st.warning("👈 Please select at least one stock symbol to view data.")
+
 
 
 
