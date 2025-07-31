@@ -60,5 +60,3 @@ if symbols:
 
 else:
     st.warning("👈 Please select at least one stock symbol to view data.")
-
-add somemore data to it
