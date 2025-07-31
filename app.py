@@ -144,5 +144,8 @@ if symbols:
         mime="application/pdf"
     )
 
+else:
+    st.warning("👈 Please select at least one stock symbol to view data.")
+
 
 
