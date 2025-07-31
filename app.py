@@ -141,7 +141,7 @@ if symbols:
     # Streamlit download button
     st.download_button(
         label="Download Summary as PDF",
-        data=pdf_output,
+        data=pdf,
         file_name="stock_summary.pdf",
         mime="application/pdf"
     )
