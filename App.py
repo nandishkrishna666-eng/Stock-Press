@@ -11,7 +11,6 @@ from io import BytesIO
 st.set_page_config(page_title="📈 Live Stock Market Dashboard", layout="wide")
 
 st.title("📊 Live Stock Market Dashboard")
-@@ -20,7 +23,7 @@
 start_date = st.sidebar.date_input("Start Date", datetime.date(2023, 1, 1))
 end_date = st.sidebar.date_input("End Date", datetime.date.today())
 
