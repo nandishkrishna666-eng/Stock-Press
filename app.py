@@ -143,7 +143,6 @@ if symbols:
         file_name="stock_summary.pdf",
         mime="application/pdf"
     )
-
 else:
     st.warning("👈 Please select at least one stock symbol to view data.")
 
