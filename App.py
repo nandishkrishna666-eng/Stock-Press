@@ -86,8 +86,8 @@ if symbols:
         chart1_path = os.path.join(tmpdir, "close_chart.png")
         chart2_path = os.path.join(tmpdir, "volume_chart.png")
 
-        fig1.write_image(chart1_path, format="png")
-        fig2.write_image(chart2_path, format="png")
+        fig1.write_image(fig1, format="png")
+        fig2.write_image(fig2, format="png")
 
         pdf = PDF()
         pdf.add_page()
@@ -95,9 +95,9 @@ if symbols:
         pdf.add_stats(stats_df)
 
         pdf.ln(10)
-        pdf.image(chart1_path, w=180)
+        pdf.image(fig1, w=180)
         pdf.ln(10)
-        pdf.image(chart2_path, w=180)
+        pdf.image(fig2, w=180)
 
         pdf_bytes = pdf.output(dest='S').encode('latin1')
         pdf_file = BytesIO(pdf_bytes)
