@@ -77,10 +77,17 @@ if symbols:
             self.cell(0, 10, "Stock Market Report", ln=1, align="C")
 
         def add_stats(self, stats):
-            self.set_font("Arial", size=12)
-            self.ln(5)
-            for _, row in stats.iterrows():
-                self.cell(0, 10, f"{row['Symbol']} - Close: ${row['Latest Close']:.2f}, High: ${row['Day High']:.2f}, Low: ${row['Day Low']:.2f}, Volume: {int(row['Volume'])}", ln=1)
+    self.set_font("Arial", size=12)
+    self.ln(5)
+    for _, row in stats.iterrows():
+        symbol = row.get("Symbol", "N/A")
+        close = f"${row['Latest Close']:.2f}" if pd.notna(row['Latest Close']) else "N/A"
+        high = f"${row['Day High']:.2f}" if pd.notna(row['Day High']) else "N/A"
+        low = f"${row['Day Low']:.2f}" if pd.notna(row['Day Low']) else "N/A"
+        volume = f"{int(row['Volume'])}" if pd.notna(row['Volume']) else "N/A"
+        line = f"{symbol} - Close: {close}, High: {high}, Low: {low}, Volume: {volume}"
+        self.cell(0, 10, line, ln=1)
+
 
     # Save plots with Matplotlib
     with tempfile.TemporaryDirectory() as tmpdir:
