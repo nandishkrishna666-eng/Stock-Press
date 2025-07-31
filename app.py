@@ -57,6 +57,5 @@ if symbols:
         )
     fig2.update_layout(title="Daily Volume Traded", xaxis_title="Date", yaxis_title="Volume")
     st.plotly_chart(fig2, use_container_width=True)
-
 else:
     st.warning("👈 Please select at least one stock symbol to view data.")
