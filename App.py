@@ -20,8 +20,6 @@ end_date = st.sidebar.date_input("End Date", datetime.date.today())
 if symbols:
     all_data = yf.download(symbols, start=start_date, end=end_date)
 
-@@ -57,5 +60,90 @@
-        )
     fig2.update_layout(title="Daily Volume Traded", xaxis_title="Date", yaxis_title="Volume")
     st.plotly_chart(fig2, use_container_width=True)
 
