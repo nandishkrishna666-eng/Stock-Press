@@ -24,7 +24,7 @@ start_date = st.sidebar.date_input("Start Date", datetime.date(2023, 1, 1))
 end_date = st.sidebar.date_input("End Date", datetime.date.today())
 
 # Fetch and display data
-if symbols:
+
     all_data = yf.download(symbols, start=start_date, end=end_date)
 
     # Flatten multi-index columns
@@ -143,8 +143,7 @@ if symbols:
         file_name="stock_summary.pdf",
         mime="application/pdf"
     )
-else:
-    st.warning("👈 Please select at least one stock symbol to view data.")
+
 
 
 
